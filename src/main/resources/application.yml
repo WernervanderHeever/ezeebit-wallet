@@ -1,0 +1,78 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: merchant-wallet
+  datasource:
+    url: jdbc:mysql://localhost:3306/wallet?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+    username: wallet
+    password: wallet
+    hikari:
+      maximum-pool-size: 20
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none          # schema is owned by Flyway
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        type:
+          preferred_instant_jdbc_type: TIMESTAMP
+  flyway:
+    enabled: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+logging:
+  level:
+    org.hibernate.orm.incubating: ERROR
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+wallet:
+  fx:
+    spread-bps: 50                 # 0.50% margin applied against the merchant
+    quote-ttl: 30s                 # how long a quoted price is honoured
+    rate-timeout: 2s               # hard timeout on the exchange-rate service
+    max-rate-age: 10s              # reject rates older than this
+    max-rate-jump-bps: 300         # reject a rate >3% away from the last accepted one (within jump-window)
+    rate-jump-window: 60s
+    max-adverse-move-bps: 50       # last-look: refuse execution if the market moved against us by more than this
+    honour-quote-when-rate-unavailable: true
+  outbox:
+    enabled: true                  # background dispatcher on/off (tests drive it manually)
+    poll-interval-ms: 500
+    batch-size: 50
+    max-attempts: 10
+    lease: 60s
+  payout-rail:
+    mode: simulated                # simulated rail calls back asynchronously
+    callback-delay: 2s
+    duplicate-callbacks: true      # simulate an at-least-once rail
+  simulated-rates:
+    latency-ms: 150
+    jitter-bps: 5                  # random walk per call, so the price keeps moving
+    prices:                        # fiat per 1 stablecoin
+      usdt-zar: "18.2500"
+      usdc-zar: "18.2400"
+      usdt-ngn: "1550.00"
+      usdc-ngn: "1549.00"
+      usdt-kes: "129.10"
+      usdc-kes: "129.05"
+
+---
+spring:
+  config:
+    activate:
+      on-profile: h2
+  datasource:
+    url: jdbc:h2:mem:wallet;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000
+    username: sa
+    password:
